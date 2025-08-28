@@ -38,6 +38,11 @@ jobs:
             noCacheOption: "--no-cache"
           ${{ if ne(parameters.noCache, true) }}:
             noCacheOption: ""
+          # Mark if this job runs on the self-hosted rpi5 pool
+          ${{ if or(eq(architecture, 'aarch64'), eq(architecture, 'jetson-nano'), eq(architecture, 'rpi5')) }}:
+            selfHostedPool: true
+          ${{ else }}:
+            selfHostedPool: false
         pool:
           ${{ if or(eq(architecture, 'aarch64'), eq(architecture, 'jetson-nano'), eq(architecture, 'rpi5')) }}:
             name: rpi5
@@ -58,10 +63,14 @@ jobs:
             displayName: List free space before cleaning
           - script: |
               docker rmi -f $(docker images -aq) || true
+            # Skip clean when running on the self-hosted agent pool
+            condition: and(succeeded(), eq(variables['selfHostedPool'], false))
             displayName: Clean up Docker images
           - script: |
               docker system prune --force --all --volumes
             displayName: Docker prune
+            # Skip prune when running on the self-hosted agent pool
+            condition: and(succeeded(), eq(variables['selfHostedPool'], false))
           - script: |
               sudo rm -rf /usr/local/lib/android || true
               sudo rm -rf /usr/local/.ghcup || true
